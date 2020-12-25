@@ -86,7 +86,7 @@ static struct proc_struct *
 alloc_proc(void) {
     struct proc_struct *proc = kmalloc(sizeof(struct proc_struct));
     if (proc != NULL) {
-    //LAB4:EXERCISE1 YOUR CODE
+            //LAB4:EXERCISE1 YOUR CODE
     /*
      * below fields in proc_struct need to be initialized
      *       enum proc_state state;                      // Process state
@@ -102,6 +102,18 @@ alloc_proc(void) {
      *       uint32_t flags;                             // Process flag
      *       char name[PROC_NAME_LEN + 1];               // Process name
      */
+        proc->state = PROC_UNINIT;//进程状态
+        proc->pid = -1; // 进程ID
+        proc->runs = 0; // 进程时间片
+        proc->kstack = 0; // 进程所使用的内存栈地址
+        proc->need_resched = NULL; // 进程是否能被调度
+        proc->parent = NULL; // 父进程
+        proc->mm = NULL; // 进程所用的虚拟内存
+        memset(&(proc->context), 0, sizeof(struct context)); // 进程的上下文
+        proc->tf = NULL; // 中断帧指针
+        proc->cr3 = boot_cr3; // 页目录表地址 设为 内核页目录表基址
+        proc->flags = 0; // 标志位
+        memset(&(proc->name), 0, PROC_NAME_LEN); // 进程名
     }
     return proc;
 }
@@ -271,7 +283,7 @@ do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf) {
         goto fork_out;
     }
     ret = -E_NO_MEM;
-    //LAB4:EXERCISE2 YOUR CODE
+        //LAB4:EXERCISE2 YOUR CODE
     /*
      * Some Useful MACROs, Functions and DEFINEs, you can use them in below implementation.
      * MACROs or Functions:
@@ -296,6 +308,29 @@ do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf) {
     //    5. insert proc_struct into hash_list && proc_list
     //    6. call wakup_proc to make the new child process RUNNABLE
     //    7. set ret vaule using child proc's pid
+    if ((proc = alloc_proc()) == NULL) {
+        goto fork_out;
+    }
+    proc->parent = current;
+    if (setup_kstack(proc) != 0) {
+        goto bad_fork_cleanup_proc;
+    }
+    if (copy_mm(clone_flags, proc) != 0) {
+        goto bad_fork_cleanup_kstack;
+    }
+    copy_thread(proc, stack, tf);
+    bool intr_flag;
+    local_intr_save(intr_flag);
+    {
+        proc->pid = get_pid();
+        hash_proc(proc);
+        nr_process++;
+        list_add(&proc_list, &(proc->list_link));
+    }
+    local_intr_restore(intr_flag);
+
+    wakeup_proc(proc);
+    ret = proc->pid;
 fork_out:
     return ret;
 
