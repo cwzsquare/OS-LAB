@@ -908,10 +908,15 @@ cpu_idle(void) {
 }
 
 //FOR LAB6, set the process's priority (bigger value will get more CPU time) 
-void
+void 
 lab6_set_priority(uint32_t priority)
 {
     if (priority == 0)
         current->lab6_priority = 1;
-    else current->lab6_priority = priority;
+    else
+        current->lab6_priority = priority;
+    // FOR CFS ONLY
+    current->fair_priority = 60 / current->lab6_priority + 1;
+    if (current->fair_priority < 1)
+        current->fair_priority = 1;
 }
