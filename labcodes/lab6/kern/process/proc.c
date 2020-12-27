@@ -710,6 +710,9 @@ int
 do_yield(void) {
     current->need_resched = 1;
     return 0;
+    // FOR CFS ONLY
+    current->fair_run_time += current->rq->max_time_slice * current->fair_priority;
+    return 0;
 }
 
 // do_wait - wait one OR any children with PROC_ZOMBIE state, and free memory space of kernel stack
